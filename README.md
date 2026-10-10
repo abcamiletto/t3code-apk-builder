@@ -12,7 +12,7 @@ non-root Shizuku needs restarting after phone reboots.
 
 The APK supports ARM phones, bundles its JavaScript, and disables upstream OTA updates.
 It has a pink launcher icon with the white T3 logo.
-It uses `com.abcamiletto.t3code.nightly`, so it installs alongside the official app.
+It uses `com.t3tools.t3code.preview`, so it installs alongside the official app.
 Upstream public cloud configuration comes from `.env.example`.
 Google sign-in and Firebase push may require separate credentials for this package/signature.
 
@@ -21,3 +21,8 @@ and `KEYSTORE_PASSWORD`. Keep the same key for all updates and back it up secure
 Forks must supply their own secrets. No Expo account is required.
 
 This repository builds and publishes APKs; installation runs on your phone.
+
+The package ID matches upstream preview builds for Clerk callback compatibility.
+This replaces the earlier custom-package build: install it as a new app and update
+its Obtainium entry. It cannot coexist with an official preview app using the same ID.
+Hosted sign-in still depends on T3’s Clerk allowlist; it must be verified on-device.
