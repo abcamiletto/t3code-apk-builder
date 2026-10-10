@@ -88,6 +88,8 @@ jobs:
       - name: Build release APK
         if: steps.nightly.outputs.build == 'true'
         working-directory: apps/mobile/android
+        env:
+          NIGHTLY_TAG: ${{ steps.nightly.outputs.tag }}
         run: ./gradlew assembleRelease --no-daemon --max-workers=2 -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       - name: Sign and verify
