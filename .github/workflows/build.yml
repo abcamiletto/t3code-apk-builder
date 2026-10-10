@@ -65,20 +65,23 @@ jobs:
         env:
           NIGHTLY_TAG: ${{ steps.nightly.outputs.tag }}
         run: |
-          mv app.config.ts upstream.config.ts
-          cat > app.config.ts <<'EOF'
-          import config from './upstream.config';
-          export default {
-            ...config,
-            name: 'T3 Code Nightly APK',
-            version: process.env.NIGHTLY_TAG!.replace(/^v/, ''),
-            android: {
-              ...config.android,
-              package: 'com.abcamiletto.t3code.nightly',
-              versionCode: Number(process.env.GITHUB_RUN_NUMBER),
-            },
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          path = Path('app.config.ts')
+          source = path.read_text()
+          assert 'export default config;' in source
+          source = source.replace('export default config;', """
+          config.name = 'T3 Code Nightly APK';
+          config.version = process.env.NIGHTLY_TAG!.replace(/^v/, '');
+          config.android = {
+            ...config.android,
+            package: 'com.abcamiletto.t3code.nightly',
+            versionCode: Number(process.env.GITHUB_RUN_NUMBER),
           };
-          EOF
+          export default config;
+          """)
+          path.write_text(source)
+          PYTHON
           pnpm exec expo prebuild --platform android --no-install
 
       - name: Build release APK
