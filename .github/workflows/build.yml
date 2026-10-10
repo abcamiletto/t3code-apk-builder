@@ -29,8 +29,10 @@ jobs:
           tag=$(gh api 'repos/pingdotgg/t3code/releases?per_page=100' --jq '[.[] | select(.draft == false and (.tag_name | contains("-nightly.")))] | max_by(.published_at) | .tag_name')
           test "$tag" != null
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          release_tag="$tag-apk.1"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           releases=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")
-          if jq -e --arg tag "$tag" 'any(.[]; .tag_name == $tag and any(.assets[]; .name == "t3code.apk"))' <<< "$releases"; then
+          if jq -e --arg tag "$release_tag" 'any(.[]; .tag_name == $tag and any(.assets[]; .name == "t3code.apk"))' <<< "$releases"; then
             echo 'Build already published.'
           else
             echo 'build=true' >> "$GITHUB_OUTPUT"
@@ -57,14 +59,27 @@ jobs:
         if: steps.nightly.outputs.build == 'true'
         run: |
           corepack enable
-          pnpm install --frozen-lockfile --filter @t3tools/mobile...
+          pnpm install --frozen-lockfile --filter @t3tools/mobile... --filter @t3tools/scripts...
           cp .env.example .env
+
+      - name: Make pink launcher icon
+        if: steps.nightly.outputs.build == 'true'
+        working-directory: scripts
+        run: |
+          node --input-type=module <<'JS'
+          import sharp from 'sharp';
+          const assets = '../apps/mobile/assets/';
+          const foreground = assets + 'android-icon-foreground.png';
+          const { width, height } = await sharp(foreground).metadata();
+          await sharp({ create: { width, height, channels: 4, background: '#EC4899' } })
+            .composite([{ input: foreground }]).png().toFile(assets + 'nightly-pink.png');
+          JS
 
       - name: Configure standalone APK
         if: steps.nightly.outputs.build == 'true'
         working-directory: apps/mobile
         env:
-          NIGHTLY_TAG: ${{ steps.nightly.outputs.tag }}
+          NIGHTLY_TAG: ${{ steps.nightly.outputs.release_tag }}
         run: |
           python3 - <<'PYTHON'
           from pathlib import Path
@@ -77,6 +92,12 @@ jobs:
           config.android = {
             ...config.android,
             package: 'com.abcamiletto.t3code.nightly',
+            icon: './assets/nightly-pink.png',
+            adaptiveIcon: {
+              ...config.android!.adaptiveIcon,
+              backgroundColor: '#EC4899',
+              backgroundImage: undefined,
+            },
             versionCode: Number(process.env.GITHUB_RUN_NUMBER),
           };
           export default config;
@@ -89,7 +110,7 @@ jobs:
         if: steps.nightly.outputs.build == 'true'
         working-directory: apps/mobile/android
         env:
-          NIGHTLY_TAG: ${{ steps.nightly.outputs.tag }}
+          NIGHTLY_TAG: ${{ steps.nightly.outputs.release_tag }}
         run: ./gradlew assembleRelease --no-daemon --max-workers=2 -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       - name: Sign and verify
@@ -111,4 +132,4 @@ jobs:
           NIGHTLY_TAG: ${{ steps.nightly.outputs.tag }}
         run: |
           printf 'Unofficial standalone APK built from https://github.com/pingdotgg/t3code/releases/tag/%s\n\nPackage: com.abcamiletto.t3code.nightly. OTA updates disabled.\n' "$NIGHTLY_TAG" > "$RUNNER_TEMP/notes.md"
-          gh release create "$NIGHTLY_TAG" t3code.apk SHA256SUMS --repo "$GITHUB_REPOSITORY" --target main --title "T3 Code $NIGHTLY_TAG" --notes-file "$RUNNER_TEMP/notes.md" --latest
+          gh release create "${NIGHTLY_TAG}-apk.1" t3code.apk SHA256SUMS --repo "$GITHUB_REPOSITORY" --target main --title "T3 Code $NIGHTLY_TAG" --notes-file "$RUNNER_TEMP/notes.md" --latest

@@ -11,6 +11,7 @@ Enable background updates and Shizuku for unattended installation;
 non-root Shizuku needs restarting after phone reboots.
 
 The APK supports ARM phones, bundles its JavaScript, and disables upstream OTA updates.
+It has a pink launcher icon with the white T3 logo.
 It uses `com.abcamiletto.t3code.nightly`, so it installs alongside the official app.
 Upstream public cloud configuration comes from `.env.example`.
 Google sign-in and Firebase push may require separate credentials for this package/signature.
